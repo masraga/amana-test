@@ -1,0 +1,26 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Services\DashboardService;
+use Illuminate\Http\JsonResponse;
+
+class DashboardController extends Controller
+{
+    public function __construct(private readonly DashboardService $dashboardService) {}
+
+    public function index(): JsonResponse
+    {
+        $user = auth()->user();
+
+        $stats = $user->isAdministrator()
+            ? $this->dashboardService->getStatsForAdmin()
+            : $this->dashboardService->getStatsForUser($user->id);
+
+        return response()->json([
+            'success' => true,
+            'data' => $stats,
+        ]);
+    }
+}

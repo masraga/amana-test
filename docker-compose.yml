@@ -1,0 +1,71 @@
+services:
+  app:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: amana_app
+    volumes:
+      - ./backend:/var/www/html
+    networks:
+      - amana_net
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=amana
+      - DB_USERNAME=amana
+      - DB_PASSWORD=secret
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: amana_nginx
+    ports:
+      - "8000:80"
+    volumes:
+      - ./backend:/var/www/html
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - app
+    networks:
+      - amana_net
+
+  mysql:
+    image: mysql:8.0
+    container_name: amana_mysql
+    environment:
+      MYSQL_DATABASE: amana
+      MYSQL_USER: amana
+      MYSQL_PASSWORD: secret
+      MYSQL_ROOT_PASSWORD: rootsecret
+    ports:
+      - "3306:3306"
+    volumes:
+      - amana_mysql_data:/var/lib/mysql
+    networks:
+      - amana_net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "amana", "-psecret"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    image: node:24-alpine
+    container_name: amana_frontend
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+    ports:
+      - "5173:5173"
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    networks:
+      - amana_net
+
+volumes:
+  amana_mysql_data:
+
+networks:
+  amana_net:
+    driver: bridge
